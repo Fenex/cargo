@@ -303,3 +303,5 @@ workspace = true
 
 [patch.crates-io]
 libssh2-sys = { path = "third-party/libssh2-sys" }
+# windows-sys 0.61 links CoTaskMemFree from combase.dll. This copy links it from ole32.dll.
+windows-sys = { path = "../win7/windows-sys" }
