@@ -298,3 +298,7 @@ http-transport-reqwest = ["gix/blocking-http-transport-reqwest"]
 
 [lints]
 workspace = true
+
+[patch.crates-io]
+# windows-sys 0.61 links CoTaskMemFree from combase.dll. This copy links it from ole32.dll.
+windows-sys = { path = "../win7/windows-sys" }
