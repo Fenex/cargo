@@ -6,8 +6,26 @@ use std::ptr;
 use std::slice;
 
 use windows_sys::Win32::Foundation::S_OK;
-use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::UI::Shell::{FOLDERID_Profile, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath};
+
+// `windows-sys` 0.61 imports `CoTaskMemFree` from `combase.dll`, which does not
+// exist on Windows 7. The same function is exported by `ole32.dll` there.
+#[cfg(target_vendor = "win7")]
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CoTaskMemFree(pv: *mut core::ffi::c_void);
+}
+
+fn free_task_mem(path: *mut u16) {
+    #[cfg(target_vendor = "win7")]
+    unsafe {
+        CoTaskMemFree(path.cast());
+    }
+    #[cfg(not(target_vendor = "win7"))]
+    unsafe {
+        windows_sys::Win32::System::Com::CoTaskMemFree(path.cast());
+    }
+}
 
 pub fn home_dir_inner() -> Option<PathBuf> {
     env::var_os("USERPROFILE")
@@ -29,12 +47,12 @@ fn home_dir_crt() -> Option<PathBuf> {
             S_OK => {
                 let path_slice = slice::from_raw_parts(path, wcslen(path));
                 let s = OsString::from_wide(&path_slice);
-                CoTaskMemFree(path.cast());
+                free_task_mem(path);
                 Some(PathBuf::from(s))
             }
             _ => {
                 // Free any allocated memory even on failure. A null ptr is a no-op for `CoTaskMemFree`.
-                CoTaskMemFree(path.cast());
+                free_task_mem(path);
                 None
             }
         }
